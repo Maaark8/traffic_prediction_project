@@ -225,48 +225,45 @@ elif page == "Prediction Playground":
             'Is_Night': 1 if is_night == "Night" else 0
         }
         
-        # B. Handle One-Hot Encoding for Weather manually
-        # This ensures we match the training columns exactly
-        # Note: 'Clear' is often the baseline (all 0s) depending on drop_first=True
-        possible_weathers = ["Cloudy", "Rain", "Snow", "Fog", "Other"]
+        # B. Handle One-Hot Encoding for Weather
+        # Our new preprocess.py uses categories: ['Clear', 'Cloudy', 'Fog', 'Other', 'Rain', 'Snow']
+        # And it uses drop_first=False, so there is a column for EVERY weather type.
+        
+        possible_weathers = ['Clear', 'Cloudy', 'Fog', 'Other', 'Rain', 'Snow']
         
         for w in possible_weathers:
-            # Create column name like 'Weather_Simple_Rain'
             col_name = f"Weather_Simple_{w}"
-            # Set to 1 if matched, else 0
-            input_data[col_name] = 1 if weather == w else 0
+            # Logic: If the user selected "Rain", then Weather_Simple_Rain is 1, others are 0
+            if weather == w:
+                input_data[col_name] = 1
+            else:
+                input_data[col_name] = 0
             
         # C. Convert to DataFrame
         input_df = pd.DataFrame([input_data])
         
-        # D. Align Columns (CRITICAL STEP)
-        # Ensure input_df has exactly the same columns as X_train, in the same order
-        # If any are missing (e.g. if 'Weather_Simple_Fog' wasn't in training data), fill with 0
-        # If extra columns exist, drop them.
+        # D. Align Columns
+        # This ensures we have the exact same columns as the training data
         input_df = input_df.reindex(columns=columns_loaded, fill_value=0)
         
-        # E. Scale the Data
+        # E. Scale
         input_scaled = scaler_loaded.transform(input_df)
         
         # F. Predict
         if model_choice == "Neural Network":
             prediction_prob = model.predict(input_scaled)[0][0]
-            # Convert probability to class
             prediction_class = 1 if prediction_prob > 0.5 else 0
             confidence = prediction_prob if prediction_class == 1 else 1 - prediction_prob
         else:
-            # Logistic Regression
             prediction_class = model.predict(input_scaled)[0]
-            prediction_prob = model.predict_proba(input_scaled)[0][1] # Probability of class 1
+            prediction_prob = model.predict_proba(input_scaled)[0][1]
             confidence = prediction_prob if prediction_class == 1 else 1 - prediction_prob
 
-        # 6. DISPLAY RESULTS
+        # G. Display
         st.divider()
+        st.write(f"**Debug Probability:** {prediction_prob:.4f}") # Helpful to see if it changes
+        
         if prediction_class == 1:
             st.error(f"🚨 Prediction: SEVERE Accident Risk")
-            st.write(f"Confidence: {confidence:.2%}")
         else:
             st.success(f"✅ Prediction: Minor Accident Risk")
-            st.write(f"Confidence: {confidence:.2%}")
-            
-        st.info(f"Model used: {model_choice} | Raw Probability Score: {prediction_prob:.4f}")
