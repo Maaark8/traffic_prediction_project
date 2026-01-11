@@ -2,25 +2,27 @@ import pandas as pd
 import numpy as np
 
 def clean_data():
-    print("Loading huge dataset... (this might take a minute)")
-    # Adjust columns if your raw CSV has different names
+    print("Loading dataset...")
+    
+    # 1. ADD ROAD FEATURES TO THE LIST
     cols = ['Severity', 'Start_Lat', 'Start_Lng', 'Temperature(F)', 
             'Humidity(%)', 'Visibility(mi)', 'Wind_Speed(mph)', 
-            'Weather_Condition', 'Sunrise_Sunset']
+            'Weather_Condition', 'Sunrise_Sunset',
+            'Traffic_Signal', 'Crossing', 'Junction'] # <--- NEW COLUMNS
     
-    # 1. LOAD DATA
     df = pd.read_csv('data/US_Accidents_March23.csv', usecols=cols)
-    print(f"Original shape: {df.shape}")
 
-    # 2. BASIC CLEANING
     df = df.dropna()
     
-    # 3. CREATE TARGET (1 = Severe, 0 = Minor)
+    # 2. CONVERT BOOLEAN TO INT (True/False -> 1/0)
+    # This is crucial because the Neural Net needs numbers
+    for col in ['Traffic_Signal', 'Crossing', 'Junction']:
+        df[col] = df[col].astype(int)
+
+    # 3. CREATE TARGET
     df['is_severe'] = df['Severity'].apply(lambda x: 1 if x >= 3 else 0)
 
-    # ==============================================================================
-    # BALANCING (Undersampling)
-    # ==============================================================================
+    # 4. BALANCE DATA (50/50 Split)
     print("Balancing classes...")
     df_severe = df[df['is_severe'] == 1]
     df_minor = df[df['is_severe'] == 0]
@@ -34,12 +36,8 @@ def clean_data():
     df = pd.concat([df_severe_bal, df_minor_bal])
     df = df.sample(frac=1, random_state=42).reset_index(drop=True)
     
-    print(f"Balanced Dataset: {len(df)} rows")
-    # ==============================================================================
-
-    # 4. SIMPLIFY WEATHER
+    # 5. WEATHER MAPPING
     top_weather = ['Clear', 'Cloudy', 'Overcast', 'Rain', 'Snow', 'Fog']
-    
     def map_weather(w):
         w = str(w).lower()
         if 'snow' in w or 'wint' in w: return 'Snow'
@@ -50,20 +48,15 @@ def clean_data():
         return 'Other'
 
     df['Weather_Simple'] = df['Weather_Condition'].apply(map_weather)
-
-    # 5. ENCODING
     df['Is_Night'] = df['Sunrise_Sunset'].map({'Day': 0, 'Night': 1})
     
-    # One-Hot Encode Weather (FIX: Added dtype=int to ensure they are saved as numbers)
+    # One-Hot Encode
     df = pd.get_dummies(df, columns=['Weather_Simple'], drop_first=False, dtype=int)
 
-    # 6. FINAL SAVE
-    # Now select_dtypes will correctly catch the new integer weather columns
+    # 6. SAVE
     df_final = df.select_dtypes(include=[np.number])
-    
     df_final.to_csv('data/traffic_clean.csv', index=False)
-    print("Saved balanced data to data/traffic_clean.csv")
-    print("Columns saved:", df_final.columns.tolist()) # Print columns to verify
+    print(f"Saved balanced data with Road Features. Shape: {df_final.shape}")
 
 if __name__ == "__main__":
     clean_data()

@@ -118,7 +118,7 @@ elif page == "Train Models":
     with tab2:
         st.header("Neural Network Config")
         
-        epochs = st.slider("Epochs", 5, 50, 10)
+        epochs = st.slider("Epochs", 30, 100, 40)
         batch_size = st.select_slider("Batch Size", options=[16, 32, 64, 128], value=32)
         hidden_layers = st.slider("Hidden Neurons", 8, 128, 64)
         
@@ -202,8 +202,9 @@ elif page == "Prediction Playground":
 
     st.success(f"Active Model: {model_choice}")
 
-    # 4. USER INPUTS
-    col1, col2 = st.columns(2)
+     # 4. USER INPUTS
+    col1, col2, col3 = st.columns(3) # Changed to 3 columns for better layout
+    
     with col1:
         temp = st.slider("Temperature (F)", -20, 110, 70)
         humid = st.slider("Humidity (%)", 0, 100, 50)
@@ -212,32 +213,32 @@ elif page == "Prediction Playground":
         vis = st.slider("Visibility (miles)", 0, 10, 10)
         is_night = st.selectbox("Time of Day", ["Day", "Night"])
         weather = st.selectbox("Weather Condition", ["Clear", "Cloudy", "Rain", "Snow", "Fog", "Other"])
+    with col3:
+        st.write("Road Features")
+        traffic_signal = st.checkbox("Traffic Signal?")
+        junction = st.checkbox("Junction?")
+        crossing = st.checkbox("Crossing?")
 
     # 5. PREDICTION LOGIC
     if st.button("Predict Severity Risk"):
         
-        # A. Create a dictionary with the numeric inputs
+        # A. Create dictionary (Include new road features)
         input_data = {
             'Temperature(F)': temp,
             'Humidity(%)': humid,
             'Visibility(mi)': vis,
             'Wind_Speed(mph)': wind,
-            'Is_Night': 1 if is_night == "Night" else 0
+            'Is_Night': 1 if is_night == "Night" else 0,
+            'Traffic_Signal': 1 if traffic_signal else 0, # NEW
+            'Junction': 1 if junction else 0,             # NEW
+            'Crossing': 1 if crossing else 0              # NEW
         }
         
-        # B. Handle One-Hot Encoding for Weather
-        # Our new preprocess.py uses categories: ['Clear', 'Cloudy', 'Fog', 'Other', 'Rain', 'Snow']
-        # And it uses drop_first=False, so there is a column for EVERY weather type.
-        
+        # B. Handle Weather (Same as before)
         possible_weathers = ['Clear', 'Cloudy', 'Fog', 'Other', 'Rain', 'Snow']
-        
         for w in possible_weathers:
             col_name = f"Weather_Simple_{w}"
-            # Logic: If the user selected "Rain", then Weather_Simple_Rain is 1, others are 0
-            if weather == w:
-                input_data[col_name] = 1
-            else:
-                input_data[col_name] = 0
+            input_data[col_name] = 1 if weather == w else 0
             
         # C. Convert to DataFrame
         input_df = pd.DataFrame([input_data])
