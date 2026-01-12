@@ -16,7 +16,7 @@ from tensorflow.keras.layers import Dense, Dropout
 # --- PAGE CONFIG ---
 st.set_page_config(page_title="Traffic AI Project", layout="wide")
 
-# --- 1. DATA LOADING (Cached so it doesn't reload every click) ---
+# --- 1. DATA LOADING ---
 @st.cache_data
 def load_data():
     return pd.read_csv('data/traffic_clean.csv')
@@ -24,7 +24,7 @@ def load_data():
 df = load_data()
 
 # Prepare features (X) and target (y)
-# We drop columns that aren't inputs (like the original text columns if any remain)
+# We drop columns that aren't inputs
 feature_cols = [c for c in df.columns if c not in ['Severity', 'is_severe', 'Weather_Condition', 'Sunrise_Sunset']]
 X = df[feature_cols]
 y = df['is_severe']
@@ -32,7 +32,7 @@ y = df['is_severe']
 # Split Data
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Scale Data (Crucial for Neural Networks)
+# Scale Data
 scaler = StandardScaler()
 X_train_scaled = scaler.fit_transform(X_train)
 X_test_scaled = scaler.transform(X_test)
@@ -42,11 +42,11 @@ st.sidebar.title("Navigation")
 page = st.sidebar.radio("Go to:", ["Data Visualization", "Train Models", "Prediction Playground"])
 
 # ==========================================
-# PAGE 1: DATA VISUALIZATION (Class 3)
+# PAGE 1: DATA VISUALIZATION
 # ==========================================
 if page == "Data Visualization":
     st.title("📊 Data Visualization & Analysis")
-    st.markdown("Exploratory Data Analysis of **50,000 Traffic Accidents**.")
+    st.markdown("Exploratory Data Analysis of **100,000 Traffic Accidents**.")
 
     col1, col2 = st.columns(2)
     
@@ -64,13 +64,13 @@ if page == "Data Visualization":
 
     st.subheader("Correlation Matrix")
     # specific numeric columns for correlation
-    corr_cols = ['Temperature(F)', 'Humidity(%)', 'Visibility(mi)', 'Wind_Speed(mph)', 'Severity']
+    corr_cols = ['Temperature(F)', 'Humidity(%)', 'Visibility(mi)', 'Wind_Speed(mph)', 'Crossing', 'Junction', 'Traffic_Signal', 'Severity']
     fig, ax = plt.subplots(figsize=(8, 4))
     sns.heatmap(df[corr_cols].corr(), annot=True, cmap='coolwarm', ax=ax)
     st.pyplot(fig)
 
 # ==========================================
-# PAGE 2: TRAIN MODELS (Class 1 & 2)
+# PAGE 2: TRAIN MODELS
 # ==========================================
 elif page == "Train Models":
     st.title("🤖 Model Training Lab")
@@ -79,7 +79,7 @@ elif page == "Train Models":
     if not os.path.exists('models'):
         os.makedirs('models')
     
-    tab1, tab2 = st.tabs(["Logistic Regression (ML Class)", "Neural Network (Neural Comp Class)"])
+    tab1, tab2 = st.tabs(["Logistic Regression", "Neural Network"])
 
     # --- TAB 1: LOGISTIC REGRESSION ---
     with tab1:
@@ -93,10 +93,10 @@ elif page == "Train Models":
                 y_pred = lr_model.predict(X_test_scaled)
                 acc = accuracy_score(y_test, y_pred)
                 
-                # Save to Session State (for immediate use)
+                # Save to Session State
                 st.session_state['lr_model'] = lr_model
                 st.session_state['scaler'] = scaler
-                st.session_state['model_columns'] = X_train.columns.tolist() # SAVE COLUMNS!
+                st.session_state['model_columns'] = X_train.columns.tolist()
                 
                 st.success(f"Training Complete! Accuracy: {acc:.2%}")
                 
