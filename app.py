@@ -8,12 +8,12 @@ import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, confusion_matrix
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Dropout
 
-# --- PAGE CONFIG ---
 st.set_page_config(page_title="Traffic AI Project", layout="wide")
 
 # --- 1. DATA LOADING ---
@@ -45,7 +45,7 @@ page = st.sidebar.radio("Go to:", ["Data Visualization", "Train Models", "Predic
 # PAGE 1: DATA VISUALIZATION
 # ==========================================
 if page == "Data Visualization":
-    st.title("📊 Data Visualization & Analysis")
+    st.title("Data Visualization & Analysis")
     st.markdown("Exploratory Data Analysis of **100,000 Traffic Accidents**.")
 
     col1, col2 = st.columns(2)
@@ -73,13 +73,13 @@ if page == "Data Visualization":
 # PAGE 2: TRAIN MODELS
 # ==========================================
 elif page == "Train Models":
-    st.title("🤖 Model Training Lab")
+    st.title("Model Training Lab")
     
     # Create a models folder if it doesn't exist
     if not os.path.exists('models'):
         os.makedirs('models')
     
-    tab1, tab2 = st.tabs(["Logistic Regression", "Neural Network"])
+    tab1, tab2, tab3 = st.tabs(["Logistic Regression", "Neural Network", "Random Forest"])
 
     # --- TAB 1: LOGISTIC REGRESSION ---
     with tab1:
@@ -106,7 +106,7 @@ elif page == "Train Models":
                 sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax)
                 st.pyplot(fig)
 
-        # SAVE BUTTON (Only shows if model is trained)
+        # SAVE BUTTON
         if 'lr_model' in st.session_state:
             if st.button("Save Logistic Model to Disk"):
                 joblib.dump(st.session_state['lr_model'], 'models/logistic_model.pkl')
@@ -156,14 +156,45 @@ elif page == "Train Models":
                 joblib.dump(X_train.columns.tolist(), 'models/columns.pkl')
                 st.toast("Neural Network saved to /models/ folder!", icon="💾")
 
+    # --- TAB 3: RANDOM FOREST ---
+    with tab3:
+        st.header("Random Forest Config")
+        n_trees = st.slider("Number of Trees", 10, 200, 50, key="rf_n")
+        max_depth = st.slider("Max Depth", 2, 20, 10, key="rf_depth")
+        
+        if st.button("Train Random Forest"):
+            with st.spinner("Training Random Forest..."):
+                rf_model = RandomForestClassifier(n_estimators=n_trees, max_depth=max_depth, random_state=42)
+                rf_model.fit(X_train_scaled, y_train)
+                y_pred = rf_model.predict(X_test_scaled)
+                acc = accuracy_score(y_test, y_pred)
+                
+                st.session_state['rf_model'] = rf_model
+                st.session_state['scaler'] = scaler
+                st.session_state['model_columns'] = X_train.columns.tolist()
+                
+                st.success(f"Random Forest Accuracy: {acc:.2%}")
+                
+                cm = confusion_matrix(y_test, y_pred)
+                fig, ax = plt.subplots()
+                sns.heatmap(cm, annot=True, fmt='d', cmap='Greens', ax=ax)
+                st.pyplot(fig)
+
+        if 'rf_model' in st.session_state:
+            if st.button("Save Random Forest"):
+                joblib.dump(st.session_state['rf_model'], 'models/rf_model.pkl')
+                joblib.dump(scaler, 'models/scaler.pkl')
+                joblib.dump(X_train.columns.tolist(), 'models/columns.pkl')
+                st.toast("Random Forest Saved!", icon="💾")
+
 # ==========================================
 # PAGE 3: PREDICTION (The "App" Part)
 # ==========================================
 elif page == "Prediction Playground":
-    st.title("🔮 Interactive Prediction")
+    st.title("Interactive Prediction")
     
     # 1. SELECT MODEL
-    model_choice = st.selectbox("Choose Model", ["Logistic Regression", "Neural Network"])
+    model_choice = st.selectbox("Choose Model", ["Logistic Regression", "Neural Network", "Random Forest"])
     
     # 2. CHECK & LOAD RESOURCES (Model + Scaler + Columns)
     model = None
@@ -192,6 +223,17 @@ elif page == "Prediction Playground":
                 model = load_model('models/neural_net.h5')
                 scaler_loaded = joblib.load('models/scaler.pkl')
                 columns_loaded = joblib.load('models/columns.pkl')
+
+        elif model_choice == "Random Forest":
+            if 'rf_model' in st.session_state:
+                model = st.session_state['rf_model']
+                scaler_loaded = st.session_state['scaler']
+                columns_loaded = st.session_state['model_columns']
+            elif os.path.exists('models/rf_model.pkl'):
+                model = joblib.load('models/rf_model.pkl')
+                scaler_loaded = joblib.load('models/scaler.pkl')
+                columns_loaded = joblib.load('models/columns.pkl')
+
     except Exception as e:
         st.error(f"Error loading model: {e}")
 
